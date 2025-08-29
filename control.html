@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Warung Sundari</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lobster&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #264d2f;
+      margin:0;
+      padding:0;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      min-height:100vh;
+      color:#fff;
+    }
+    .card {
+      background:#2e5a34;
+      border-radius:20px;
+      box-shadow:0 8px 20px rgba(0,0,0,0.3);
+      padding:30px;
+      width:100%;
+      max-width:520px;
+      text-align:center;
+      position:relative; /* biar tombol logout bisa pojok kanan atas */
+    }
+    h2 {
+      font-family: 'Lobster', cursive;
+      color:#ff7b00;
+      margin-bottom:20px;
+      text-shadow:1px 1px #000;
+    }
+    input, button {
+      margin:8px 0;
+      padding:12px;
+      border-radius:12px;
+      border:1px solid #ccc;
+      font-size:14px;
+    }
+    input { width:100%; outline:none; }
+    .row { display:flex; gap:10px; margin-bottom:8px; }
+    .row input { flex:1; }
+
+    button {
+      background:#ff7b00;
+      color:white;
+      border:none;
+      font-weight:bold;
+      cursor:pointer;
+      transition:0.2s;
+      padding:12px;
+      border-radius:10px;
+    }
+    button:hover { background:#e06600; transform:translateY(-2px); }
+    .add-btn { background:#ffd700; color:#264d2f; }
+    .add-btn:hover { background:#ff7b00; color:white; }
+    .logout {
+      position:absolute;
+      top:15px;
+      right:15px;
+      background:#ff4d4d;
+      color:white;
+      padding:8px 14px;
+      border-radius:8px;
+      font-weight:bold;
+      cursor:pointer;
+    }
+    .logout:hover { background:#cc0000; }
+
+    #productList div {
+      margin:10px 0;
+      padding:10px;
+      background:#2e5a34;
+      border-radius:10px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.2);
+      text-align:left;
+      color:#fff;
+    }
+    #productList img {
+      border-radius:8px;
+      margin:5px 0;
+      display:block;
+    }
+    #productList button {
+      margin-top:5px;
+      margin-right:5px;
+      padding:8px 12px;
+      border-radius:8px;
+      font-size:13px;
+    }
+    .delete-btn { background:#ff4f4f; }
+    .delete-btn:hover { background:#cc0000; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>🍗 Control Panel 🍗</h2>
+
+    <!-- LOGIN -->
+    <form id="loginForm">
+      <input type="text" id="user" placeholder="Username" required><br>
+      <input type="password" id="pass" placeholder="Password" required><br>
+      <button type="submit" id="loginBtn">Login</button>
+    </form>
+
+    <!-- ADMIN PANEL -->
+    <div id="adminPanel" style="display:none;">
+      <p id="welcomeMsg" style="color:#ffd700;font-weight:bold;"></p>
+      <button class="logout" onclick="logout()">🚪 Logout</button>
+
+      <h2 id="formTitle">Yuk Tambahin Produk</h2>
+      <form id="productForm">
+        <input type="hidden" id="row">
+        <input type="text" id="nama" placeholder="Nama Produk" required><br>
+        <input type="number" id="harga" placeholder="Harga Produk (opsional)"><br>
+
+        <div id="toppingContainer">
+          <div class="row topping-group">
+            <input type="text" class="topping-name" placeholder="Nama Topping">
+            <input type="number" class="topping-price" placeholder="Harga">
+          </div>
+        </div>
+        <button type="button" class="add-btn" onclick="addTopping()">+ Tambah Topping</button><br>
+
+        <input type="file" id="foto" accept="image/*"><br>
+        <button type="submit" id="saveBtn">Simpan Produk</button>
+      </form>
+
+      <h2>Daftar Produk</h2>
+      <div id="productList"></div>
+    </div>
+  </div>
+
+<script defer>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwuJUoyM5GofUK2jbAU75RSlBosQtYkZCs5uthynfJx2C-MpKxf6oZ5DY65BQgrkk8V/exec";
+let editMode = false;
+let productCache = [];
+
+// ✅ Cek login tersimpan
+window.addEventListener("DOMContentLoaded",()=>{
+  if(localStorage.getItem("loggedIn")==="true"){
+    const user=localStorage.getItem("username")||"Admin";
+    document.getElementById("loginForm").style.display="none";
+    document.getElementById("adminPanel").style.display="block";
+    document.getElementById("welcomeMsg").innerText="👋 Halo, "+user;
+    loadProducts(true);
+  }
+});
+
+// LOGIN
+document.getElementById("loginForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  let btn = document.getElementById("loginBtn");
+  btn.disabled = true;
+  btn.innerText = "⏳ Login...";
+
+  let user = document.getElementById("user").value.trim();
+  let pass = document.getElementById("pass").value.trim();
+
+  let res = await fetch(GAS_URL+"?action=login&user="+user+"&pass="+pass);
+  let data = await res.json();
+
+  btn.disabled = false;
+  btn.innerText = "Login";
+
+  if(data.success){
+    localStorage.setItem("loggedIn","true");
+    localStorage.setItem("username",user);
+    document.getElementById("loginForm").style.display="none";
+    document.getElementById("adminPanel").style.display="block";
+    document.getElementById("welcomeMsg").innerText="👋 Halo, "+user;
+    loadProducts(true);
+  } else {
+    alert("Login gagal!");
+  }
+});
+
+function logout(){
+  localStorage.removeItem("loggedIn");
+  localStorage.removeItem("username");
+  document.getElementById("loginForm").style.display="block";
+  document.getElementById("adminPanel").style.display="none";
+}
+
+// Tambah topping input
+function addTopping(){
+  const toppingContainer = document.getElementById("toppingContainer");
+  let div = document.createElement("div");
+  div.className = "row topping-group";
+  div.innerHTML = `
+    <input type="text" class="topping-name" placeholder="Nama Topping">
+    <input type="number" class="topping-price" placeholder="Harga">
+  `;
+  toppingContainer.appendChild(div);
+}
+
+// Konversi ke Base64
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = error => reject(error);
+  });
+}
+
+// Simpan produk
+document.getElementById("productForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  let btn = document.getElementById("saveBtn");
+  btn.innerText = editMode ? "⏳ Mengupdate..." : "⏳ Menyimpan...";
+  btn.disabled = true;
+
+  let nama = document.getElementById("nama").value;
+  let harga = document.getElementById("harga").value;
+  if(harga==="") harga=0; // ✅ harga default 0
+  let row = document.getElementById("row").value;
+
+  let toppingEls = document.querySelectorAll(".topping-group");
+  let topings = [];
+  toppingEls.forEach(el => {
+    let name = el.querySelector(".topping-name").value.trim();
+    let price = el.querySelector(".topping-price").value.trim();
+    if(name !== "" && price !== ""){
+      topings.push({nama:name, harga:price});
+    }
+  });
+
+  let fotoFile = document.getElementById("foto").files[0];
+  let fotoBase64 = fotoFile ? await toBase64(fotoFile) : "";
+
+  let formData = new URLSearchParams();
+  formData.append("action", editMode ? "edit" : "add");
+  formData.append("nama", nama);
+  formData.append("harga", harga);
+  formData.append("topings", JSON.stringify(topings));
+  if(editMode) formData.append("row", row);
+  if(fotoBase64) formData.append("foto", fotoBase64);
+
+  let res = await fetch(GAS_URL, { method: "POST", body: formData });
+  let data = await res.json();
+
+  btn.disabled = false;
+  btn.innerText = editMode ? "Update Produk" : "Simpan Produk";
+
+  if(data.success){
+    alert(editMode ? "Produk berhasil diupdate!" : "Produk berhasil ditambahkan!");
+    resetForm();
+    loadProducts(true);
+  } else {
+    alert("Gagal simpan produk");
+  }
+});
+
+// Reset form
+function resetForm(){
+  document.getElementById("productForm").reset();
+  document.getElementById("toppingContainer").innerHTML = `
+    <div class="row topping-group">
+      <input type="text" class="topping-name" placeholder="Nama Topping">
+      <input type="number" class="topping-price" placeholder="Harga">
+    </div>`;
+  editMode = false;
+  document.getElementById("formTitle").innerText = "Yuk Tambahin Produk";
+  document.getElementById("saveBtn").innerText = "Simpan Produk";
+  document.getElementById("saveBtn").disabled = false;
+  document.getElementById("row").value = "";
+}
+
+// Load produk
+async function loadProducts(refresh=false){
+  if(refresh || productCache.length === 0){
+    let res = await fetch(GAS_URL+"?action=getMenu");
+    productCache = await res.json();
+  }
+  let list = document.getElementById("productList");
+  list.innerHTML = "";
+  productCache.forEach((item)=>{
+    let div = document.createElement("div");
+    div.innerHTML = `
+      <strong>${item.Nama}</strong> - Rp${item.Harga||0}<br>
+      ${item.FotoURL ? `<img src="${item.FotoURL}" alt="${item.Nama}" width="100" loading="lazy">` : ""}
+      <small>Topping: ${item.Topping||"-"}</small><br>
+      <button onclick="editProduct(${item.Row}, '${item.Nama}', '${item.Harga||0}', '${item.Topping||""}', '${item.FotoURL||""}')">✏️ Edit</button>
+      <button onclick="deleteProduct(${item.Row})" class="delete-btn">🗑 Hapus</button>
+    `;
+    list.appendChild(div);
+  });
+}
+
+// Hapus produk
+async function deleteProduct(row){
+  if(!confirm("Yakin mau hapus produk ini?")) return;
+  let formData = new URLSearchParams();
+  formData.append("action", "delete");
+  formData.append("row", row);
+
+  let res = await fetch(GAS_URL, { method:"POST", body: formData });
+  let data = await res.json();
+
+  if(data.success){
+    alert("Produk berhasil dihapus!");
+    loadProducts(true);
+  } else {
+    alert("Gagal hapus produk!");
+  }
+}
+
+// Edit produk
+function editProduct(row, nama, harga, topping, foto){
+  editMode = true;
+  document.getElementById("formTitle").innerText = "EDIT PRODUK";
+  document.getElementById("saveBtn").innerText = "Update Produk";
+  document.getElementById("row").value = row;
+  document.getElementById("nama").value = nama;
+  document.getElementById("harga").value = harga;
+
+  document.getElementById("toppingContainer").innerHTML = "";
+  if(topping && topping !== ""){
+    topping.split(",").forEach(t => {
+      let [namaT, hargaT] = t.split(":");
+      let div = document.createElement("div");
+      div.className = "row topping-group";
+      div.innerHTML = `
+        <input type="text" class="topping-name" value="${namaT.trim()}" placeholder="Nama Topping">
+        <input type="number" class="topping-price" value="${hargaT?hargaT.trim():""}" placeholder="Harga">
+      `;
+      document.getElementById("toppingContainer").appendChild(div);
+    });
+  } else {
+    addTopping();
+  }
+}
+</script>
+</body>
+</html>

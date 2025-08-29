@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warung Sundari</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Lobster&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+    :root{
+      --bg:#264d2f;
+      --card:#2e5a34;
+      --accent:#ff7b00;
+      --gold:#ffd700;
+      --text:#ffffff;
+    }
+    *{box-sizing:border-box}
+    body {margin:0;font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);}
+    h1 {font-family:'Lobster',cursive;font-size:2.8rem;color:var(--accent);text-align:center;margin:20px 0;}
+
+    #loader {position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg);
+      display:flex;align-items:center;justify-content:center;flex-direction:column;
+      font-family:'Lobster',cursive;font-size:2rem;color:var(--accent);z-index:9999;}
+    #loader span {font-family:'Poppins',sans-serif;font-size:1rem;margin-top:10px;color:var(--gold);}
+
+    .menu-container {display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;padding:20px;}
+    .card {background:var(--card);border-radius:15px;padding:15px;text-align:center;color:var(--text);transition:0.3s;}
+    .card:hover {transform:translateY(-5px) scale(1.03);}
+    .card img {width:130px;height:130px;object-fit:cover;border-radius:50%;border:5px solid var(--accent);margin-bottom:10px;cursor:pointer;}
+    .card h3 {font-size:1.1rem;margin:8px 0 4px;color:var(--text);}
+    .card p {font-weight:bold;color:var(--gold);margin:0;}
+
+    .popup {position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);
+      display:none;align-items:center;justify-content:center;z-index:1000;padding:16px;}
+    .popup-content {background:var(--card);padding:20px;border-radius:20px;max-width:420px;width:100%;text-align:center;
+      box-shadow:0 6px 20px rgba(0,0,0,0.3);animation:popIn 0.25s ease;}
+    @keyframes popIn {from{transform:scale(0.9);opacity:0;}to{transform:scale(1);opacity:1;}}
+    .popup h3{margin:5px 0;color:var(--accent);} .popup h4{margin:10px 0 8px;color:var(--gold);}
+
+    .btn {display:inline-block;margin:8px;padding:12px 20px;background:var(--accent);color:white;border-radius:25px;font-weight:bold;
+      border:none;cursor:pointer;transition:0.2s;}
+    .btn:hover {background:#e06600;transform:translateY(-2px);}
+    .btn.cancel {background:#999;} .btn.cancel:hover {background:#777;}
+
+    #cart-btn {position:fixed;bottom:70px;right:20px;background:var(--accent);color:white;border-radius:50%;width:65px;height:65px;
+      display:flex;align-items:center;justify-content:center;font-size:1.6rem;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.4);}
+    #cart-count {position:absolute;top:10px;right:10px;background:var(--gold);color:var(--bg);border-radius:50%;padding:2px 6px;font-size:0.8rem;}
+
+    .cart-item {display:block;margin:12px 0;font-size:0.95rem;text-align:left;padding:10px;background:var(--card);border-radius:12px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.2);position:relative;}
+    .cart-item strong {display:block;margin-bottom:6px;font-size:1rem;color:var(--accent);}
+    .cart-item small {display:block;color:#ddd;margin-left:10px;}
+    .cart-item .subtotal {margin-top:8px;font-weight:bold;color:var(--gold);}
+
+    .cart-actions {position:absolute;top:10px;right:10px;display:flex;gap:6px;}
+    .cart-item button.edit {background:var(--gold);color:var(--bg);border:none;border-radius:6px;padding:4px 8px;font-size:0.8rem;cursor:pointer;font-weight:bold;}
+    .cart-item button.remove {background:#ff4d4d;color:#fff;border:none;border-radius:6px;padding:4px 8px;font-size:0.8rem;cursor:pointer;font-weight:bold;}
+
+    .total-all {margin-top:10px;font-weight:bold;color:var(--gold);}
+
+    footer {position:fixed;bottom:0;left:0;width:100%;text-align:center;padding:6px;background:var(--gold);color:var(--bg);font-size:14px;font-weight:600;}
+
+    .topping-option {display:flex;align-items:center;justify-content:space-between;margin:6px 0;padding:6px 10px;background:var(--bg);border-radius:8px;font-size:0.95rem;text-align:left;}
+    .qty-control {display:flex;align-items:center;gap:8px;}
+    .qty-btn {background:var(--accent);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:0.9rem;cursor:pointer;font-weight:bold;}
+    .qty-btn:active{transform:scale(0.92);}
+    input[type="text"]{width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin:6px 0;}
+  </style>
+</head>
+<body>
+  <div id="loader">Warung Sundari<br><span>Loading...</span></div>
+  <h1>Warung Sundari</h1>
+  <div class="menu-container" id="menu"></div>
+
+  <!-- Popup topping -->
+  <div class="popup" id="toppingPopup">
+    <div class="popup-content">
+      <h3 id="popupProduct"></h3>
+
+      <!-- Kontrol jumlah pesanan (di atas topping) -->
+      <div class="topping-option">
+        <span>Jumlah Pesanan</span>
+        <div class="qty-control">
+          <button class="qty-btn" onclick="changeProductQty(-1)">-</button>
+          <span id="productQty">0</span>
+          <button class="qty-btn" onclick="changeProductQty(1)">+</button>
+        </div>
+      </div>
+
+      <h4>Tambah Extra Topping</h4>
+      <div id="toppingList"></div>
+      <p id="totalPrice" style="font-weight:bold; margin:10px 0;">Total: Rp0</p>
+      <button class="btn" onclick="addToCart()">🍗 Tambah Pesanan</button>
+      <button class="btn cancel" onclick="closePopup()">✖ Batal</button>
+    </div>
+  </div>
+
+  <!-- Cart Button -->
+  <div id="cart-btn" onclick="openCart()">🛒<div id="cart-count">0</div></div>
+
+  <!-- Cart Popup -->
+  <div class="popup" id="cart-popup">
+    <div class="popup-content">
+      <h3>Keranjang</h3>
+      <div id="cartItems"></div>
+      <p class="total-all" id="cartTotal">Total: Rp0</p>
+      <input id="custName" type="text" placeholder="Nama Anda (wajib)">
+      <input id="custAddress" type="text" placeholder="Alamat Lengkap (opsional)">
+      <button class="btn" id="checkoutBtn" onclick="openPaymentPopup()" disabled>✅ Checkout</button>
+      <button class="btn cancel" onclick="closeCart()">✖ Tutup</button>
+    </div>
+  </div>
+
+  <!-- Payment Popup -->
+  <div class="popup" id="payment-popup">
+    <div class="popup-content" style="text-align:center;">
+      <h3 style="margin-bottom:15px;">Metode Pembayaran</h3>
+      <div style="margin:10px 0;text-align:left;">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input type="radio" name="payMethod" value="QRIS" onchange="togglePay()"> QRIS
+        </label>
+        <div id="qrisBox" style="display:none;text-align:center;margin-top:10px;">
+          <img src="https://ik.imagekit.io/qdmpemhm2/Cuplikan%20layar%202025-08-29%20132427.png?updatedAt=1756448691262" style="max-width:180px;width:100%;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.4);margin-bottom:10px;" alt="QRIS Warung Sundari">
+          <br><a href="https://ik.imagekit.io/qdmpemhm2/Cuplikan%20layar%202025-08-29%20132427.png?updatedAt=1756448691262" download="QRIS-WarungSundari.png"><button class="btn">💾 Simpan QRIS</button></a>
+        </div>
+      </div>
+      <div style="margin:10px 0;text-align:left;">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input type="radio" name="payMethod" value="Cash" onchange="togglePay()"> Cash
+        </label>
+        <p id="cashNote" style="display:none;color:#ddd;margin:8px 0 0 20px;">💵 Siapkan uang pas saat pesanan diterima</p>
+      </div>
+      <div style="margin-top:15px;">
+        <button class="btn" onclick="checkout()">📩 Pesan</button>
+        <button class="btn cancel" onclick="closePaymentPopup()">✖ Batal</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const GAS_URL="https://script.google.com/macros/s/AKfycbwuJUoyM5GofUK2jbAU75RSlBosQtYkZCs5uthynfJx2C-MpKxf6oZ5DY65BQgrkk8V/exec";
+const WA_NUMBER="6285814591600";
+let currentProduct=null; 
+let cart=[];
+let toppingQtys={};
+let productQty=0; // jumlah pesanan di popup
+
+window.addEventListener("load",()=>{ setTimeout(()=>{document.getElementById("loader").style.display="none";},800); });
+
+async function loadMenu(){ 
+  try{
+    let res=await fetch(GAS_URL+"?action=getMenu"); 
+    let data=await res.json(); 
+    let menuDiv=document.getElementById("menu");
+    data.forEach(item=>{ 
+      let foto=item.FotoURL||""; 
+      if(foto && !foto.includes("lh3.googleusercontent.com")){ 
+        let idMatch=foto.match(/[-\\w]{25,}/); 
+        if(idMatch) foto="https://lh3.googleusercontent.com/d/"+idMatch[0]+"=s600"; 
+      }
+      let card=document.createElement("div"); 
+      card.className="card"; 
+      card.innerHTML=`
+        <img src="${foto}" alt="${item.Nama}" onclick='openTopping(${JSON.stringify(item)})'>
+        <h3>${item.Nama}</h3>
+        <p>Rp ${item.Harga}</p>
+      `; 
+      menuDiv.appendChild(card); 
+    });
+  }catch(e){
+    console.error(e);
+  }
+}
+loadMenu();
+
+function openTopping(item){ 
+  currentProduct=item; 
+  document.getElementById("popupProduct").innerText=`${item.Nama} - Rp${item.Harga}`; 
+  let toppingList=document.getElementById("toppingList"); 
+  toppingList.innerHTML="";
+  toppingQtys={}; 
+  productQty=0; 
+  document.getElementById("productQty").innerText=productQty;
+  if(item.Topping){ 
+    let tops=item.Topping.split(",").map(t=>t.trim()).filter(Boolean); 
+    tops.forEach((t,idx)=>{ 
+      let [nama,harga]=t.split(":"); 
+      let div=document.createElement("div"); 
+      div.className="topping-option"; 
+      div.innerHTML=`
+        <span>${nama} (+Rp${harga})</span>
+        <div class="qty-control">
+          <button class="qty-btn" onclick="changeQty(${idx},-1)">-</button>
+          <span id="qty-${idx}">0</span>
+          <button class="qty-btn" onclick="changeQty(${idx},1)">+</button>
+        </div>
+      `;
+      toppingList.appendChild(div); 
+    }); 
+  }
+  updateTotal(); 
+  document.getElementById("toppingPopup").style.display="flex"; 
+}
+function closePopup(){ document.getElementById("toppingPopup").style.display="none"; }
+
+function changeProductQty(delta){
+  productQty+=delta;
+  if(productQty<0) productQty=0;
+  document.getElementById("productQty").innerText=productQty;
+  updateTotal();
+}
+
+function changeQty(idx,delta){
+  toppingQtys[idx]=(toppingQtys[idx]||0)+delta;
+  if(toppingQtys[idx]<0) toppingQtys[idx]=0;
+  document.getElementById("qty-"+idx).innerText=toppingQtys[idx];
+  updateTotal();
+}
+function updateTotal(){ 
+  let base=parseInt(currentProduct.Harga||0); 
+  let total=0; 
+  if(productQty>0){
+    total+=base*productQty;
+    if(currentProduct.Topping){
+      let tops=currentProduct.Topping.split(",").map(t=>t.trim()).filter(Boolean); 
+      tops.forEach((t,idx)=>{ 
+        let [nama,harga]=t.split(":"); 
+        let qty=toppingQtys[idx]||0;
+        total+=parseInt(harga||0)*qty;
+      });
+    }
+  }
+  document.getElementById("totalPrice").innerText=`Total: Rp${total}`;
+}
+function addToCart(){ 
+  if(productQty<=0){ alert("Tentukan jumlah pesanan terlebih dahulu!"); return; }
+  let base=parseInt(currentProduct.Harga||0); 
+  let toppings=[]; 
+  let toppingData=[];
+  let total=base*productQty;
+  if(currentProduct.Topping){
+    let tops=currentProduct.Topping.split(",").map(t=>t.trim()).filter(Boolean); 
+    tops.forEach((t,idx)=>{ 
+      let [nama,harga]=t.split(":"); 
+      let qty=toppingQtys[idx]||0;
+      if(qty>0){
+        toppings.push(`${nama} x${qty} (+Rp${harga})`);
+        toppingData.push({nama,harga:parseInt(harga||0),qty});
+        total+=parseInt(harga||0)*qty;
+      }
+    });
+  }
+  cart.push({nama:currentProduct.Nama,harga:base*productQty,basePrice:base,qty:productQty,toppings,total,toppingData,editing:false}); 
+  updateCartCount(); 
+  closePopup(); 
+}
+
+function updateCartCount(){ document.getElementById("cart-count").innerText=cart.length; }
+function renderCartItems(){
+  let cartItems=document.getElementById("cartItems");
+  cartItems.innerHTML="";
+  let grandTotal=0;
+  cart.forEach((c,i)=>{
+    grandTotal+=c.total;
+    let toppingHTML="";
+    if(c.toppings && c.toppings.length>0){
+      toppingHTML=c.toppings.map(t=>`<small>➕ ${t}</small>`).join("");
+    }
+    let div=document.createElement("div");
+    div.className="cart-item";
+    div.innerHTML=`
+      <strong>${c.nama} - Rp${c.harga}</strong>
+      ${toppingHTML}
+      <div class="subtotal">Total Item: Rp${c.total}</div>
+      <div class="cart-actions">
+        <button class="edit" onclick="toggleEdit(${i})">${c.editing?"💾 Simpan":"✏️ Edit"}</button>
+        <button class="remove" onclick="removeItem(${i})">Hapus</button>
+      </div>
+    `;
+    cartItems.appendChild(div);
+  });
+  document.getElementById("cartTotal").innerText=`Total: Rp${grandTotal}`;
+}
+
+
+function openCart(){ 
+  if(cart.length === 0){
+    alert("Keranjang masih kosong!");
+    return;
+  }
+  let cartItems=document.getElementById("cartItems"); 
+  cartItems.innerHTML=""; 
+  let grandTotal=0; 
+  cart.forEach((c,i)=>{ 
+    grandTotal+=c.total; 
+    let toppingHTML="";
+    if(c.toppingData && c.toppingData.length>0){
+      if(c.editing){
+        // Kontrol jumlah pesanan utama
+        let productQtyHTML = `
+          <div class="topping-option">
+            <span>Jumlah Pesanan</span>
+            <div class="qty-control">
+              <button class="qty-btn" onclick="changeItemQty(${i},-1)">-</button>
+              <span id="item-qty-${i}">${c.qty || 1}</span>
+              <button class="qty-btn" onclick="changeItemQty(${i},1)">+</button>
+            </div>
+          </div>
+        `;
+        toppingHTML = productQtyHTML + c.toppingData.map((t,idx)=>`
+          <div class="topping-option">
+            <span>${t.nama} (+Rp${t.harga})</span>
+            <div class="qty-control">
+              <button class="qty-btn" onclick="changeCartQty(${i},${idx},-1)">-</button>
+              <span id="cart-qty-${i}-${idx}">${t.qty}</span>
+              <button class="qty-btn" onclick="changeCartQty(${i},${idx},1)">+</button>
+            </div>
+          </div>
+        `).join("");
+      } else {
+        toppingHTML=c.toppings.map(t=>`<small>➕ ${t}</small>`).join("");
+      }
+    } else if (c.editing){
+      // produk tanpa topping, tetap tampilkan kontrol qty
+      toppingHTML = `
+        <div class="topping-option">
+          <span>Jumlah Pesanan</span>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="changeItemQty(${i},-1)">-</button>
+            <span id="item-qty-${i}">${c.qty || 1}</span>
+            <button class="qty-btn" onclick="changeItemQty(${i},1)">+</button>
+          </div>
+        </div>
+      `;
+    }
+    let div=document.createElement("div"); 
+    div.className="cart-item"; 
+    div.innerHTML=`
+      <strong>${c.nama} - Rp${c.harga}</strong>
+      ${toppingHTML || ""}
+      <div class="subtotal">Total Item: Rp${c.total}</div>
+      <div class="cart-actions">
+        <button class="edit" onclick="toggleEdit(${i})">${c.editing?"💾 Simpan":"✏️ Edit"}</button>
+        <button class="remove" onclick="removeItem(${i})">Hapus</button>
+      </div>
+    `; 
+    cartItems.appendChild(div); 
+  }); 
+  document.getElementById("cartTotal").innerText=`Total: Rp${grandTotal}`; 
+  document.getElementById("cart-popup").style.display="flex"; 
+  document.getElementById("custName").addEventListener("input",validateForm); 
+  document.getElementById("custAddress").addEventListener("input",validateForm); 
+}
+
+function closeCart(){ document.getElementById("cart-popup").style.display="none"; }
+
+function removeItem(index){
+  if(confirm("Yakin hapus pesanan?")){
+    cart.splice(index,1);
+    updateCartCount();
+    renderCartItems();
+  }
+}
+
+
+function toggleEdit(i){
+  if(cart[i].editing){
+    // Simpan perubahan, hitung ulang total item
+    let base=cart[i].basePrice * cart[i].qty;
+    let total=base;
+    let toppings=[];
+    if(cart[i].toppingData){
+      cart[i].toppingData.forEach(t=>{
+        if(t.qty>0){
+          toppings.push(`${t.nama} x${t.qty} (+Rp${t.harga})`);
+          total+=t.harga*t.qty;
+        }
+      });
+    }
+    cart[i].harga=base;
+    cart[i].toppings=toppings;
+    cart[i].total=total;
+    cart[i].editing=false;
+  } else {
+    cart[i].editing=true;
+  }
+  openCart();
+}
+
+function changeCartQty(i,idx,delta){
+  cart[i].toppingData[idx].qty+=delta;
+  if(cart[i].toppingData[idx].qty<0) cart[i].toppingData[idx].qty=0;
+  document.getElementById(`cart-qty-${i}-${idx}`).innerText=cart[i].toppingData[idx].qty;
+}
+
+function validateForm(){ 
+  let name=document.getElementById("custName").value.trim(); 
+  document.getElementById("checkoutBtn").disabled = (name.length === 0);
+}
+
+function openPaymentPopup(){ 
+  let name=document.getElementById("custName").value.trim(); 
+  if(!name){ alert("⚠️ Silakan isi Nama terlebih dahulu!"); return; } 
+  document.getElementById("cart-popup").style.display="none"; 
+  document.getElementById("payment-popup").style.display="flex"; 
+}
+function closePaymentPopup(){ document.getElementById("payment-popup").style.display="none"; }  
+
+function togglePay(){
+  let method=document.querySelector('input[name="payMethod"]:checked')?.value;
+  document.getElementById("qrisBox").style.display=(method=="QRIS")?"block":"none";
+  document.getElementById("cashNote").style.display=(method=="Cash")?"block":"none";
+}
+
+function checkout(){ 
+  let name=document.getElementById("custName").value.trim(); 
+  let addr=document.getElementById("custAddress").value.trim(); 
+  let method=document.querySelector('input[name="payMethod"]:checked'); 
+  if(!method){ alert("Pilih metode pembayaran!"); return; } 
+  method=method.value; 
+  let text=`Halo, saya mau pesan:\n`; 
+  let grandTotal=0; 
+  cart.forEach(c=>{ 
+    text+=`🍗 ${c.nama} - Rp${c.harga}\n`; 
+    if(c.toppings && c.toppings.length>0){ 
+      text+=`   ➕ Topping:\n`; 
+      c.toppings.forEach(t=>text+=`      - ${t}\n`);
+    } 
+    text+=`   Subtotal: Rp${c.total}\n\n`; 
+    grandTotal+=c.total; 
+  }); 
+  text+=`====================\nTotal Keseluruhan: Rp${grandTotal}\n\n👤 Nama: ${name}\n🏠 Alamat: ${addr || "-"}\n💳 Pembayaran: ${method}`; 
+  window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(text)}`,"_blank"); 
+}
+
+function changeItemQty(i, delta){
+  if(!cart[i].basePrice) cart[i].basePrice = cart[i].harga;
+  let qty = (cart[i].qty||1) + delta;
+  if(qty < 1) qty = 1;
+  cart[i].qty = qty;
+  cart[i].harga = cart[i].basePrice * qty;
+  // update angka qty saat sedang edit
+  const span = document.getElementById(`item-qty-${i}`);
+  if(span) span.innerText = qty;
+}
+</script>
+
+<footer>🍗 Warung Sundari | CopyRight @2025 🍗</footer>
+</body>
+</html>
